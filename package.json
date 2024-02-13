@@ -1,0 +1,45 @@
+{
+  "name": "AssociationDemo",
+  "version": "1.0.0",
+  "description": "A simple CAP project.",
+  "repository": "<Add your repository here>",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@sap/cds": "^6",
+    "@sap/hana-client": "^2.16.26",
+    "express": "^4",
+    "hdb": "^0.19.0",
+    "passport": "0.7.0",
+    "@sap/xssec": "3.6.1"
+  },
+  "devDependencies": {
+    "@sap/hdi-deploy": "4.6.1",
+    "@sap/ux-specification": "^1.120.3",
+    "sqlite3": "^5",
+    "rimraf": "^3.0.2"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "watch-manageorders_ui": "cds watch --open manageorders_ui/webapp/index.html?sap-ui-xx-viewCache=false",
+    "undeploy": "cf undeploy AssociationDemo --delete-services --delete-service-keys --delete-service-brokers",
+    "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "deploy": "cf deploy mta_archives/archive.mtar --retries 1"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "hana-cloud"
+      },
+      "auth": {
+        "kind": "dummy"
+      }
+    },
+    "hana": {
+      "deploy-format": "hdbtable"
+    }
+  },
+  "sapux": [
+    "app/manageorders_ui"
+  ]
+}

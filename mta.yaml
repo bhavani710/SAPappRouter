@@ -1,0 +1,138 @@
+_schema-version: "3.1"
+ID: AssociationDemo
+description: A simple CAP project.
+version: 1.0.0
+modules:
+- name: AssociationDemo-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: AssociationDemo-db
+  - name: uaa_AssociationDemo
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+  build-parameters:
+    builder: npm-ci
+- name: AssociationDemo-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: AssociationDemo-db
+  parameters:
+    buildpack: nodejs_buildpack
+- name: AssociationDemo-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: AssociationDemo-destination-service
+    parameters:
+      content-target: true
+  - name: AssociationDemo_html_repo_host
+    parameters:
+      service-key:
+        name: AssociationDemo_html_repo_host-key
+  - name: uaa_AssociationDemo
+    parameters:
+      service-key:
+        name: uaa_AssociationDemo-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: manageorder_AssociationDemo_html_repo_host
+          ServiceInstanceName: AssociationDemo-html5-app-host-service
+          ServiceKeyName: AssociationDemo_html_repo_host-key
+          sap.cloud.service: manageorder
+        - Authentication: OAuth2UserTokenExchange
+          Name: manageorder_uaa_AssociationDemo
+          ServiceInstanceName: AssociationDemo-xsuaa-service
+          ServiceKeyName: uaa_AssociationDemo-key
+          sap.cloud.service: manageorder
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+- name: AssociationDemo-app-content
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: AssociationDemo_html_repo_host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - manageordersui.zip
+      name: manageordersui
+      target-path: resources/
+- name: manageordersui
+  type: html5
+  path: app/manageorders_ui
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+resources:
+- name: AssociationDemo-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    config:
+      schema: ASSOCDEMO
+    service: hana
+    service-name: AssociationDemo-db-hdi
+    service-plan: hdi-shared
+- name: AssociationDemo-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          - Authentication: NoAuthentication
+            HTML5.DynamicDestination: true
+            HTML5.ForwardAuthToken: true
+            Name: manageorder-srv-api
+            ProxyType: Internet
+            Type: HTTP
+            URL: ~{srv-api/srv-url}
+        
+          existing_destinations_policy: update
+      version: 1.0.0
+    service: destination
+    service-name: AssociationDemo-destination-service
+    service-plan: lite
+  requires:
+  - name: srv-api
+- name: AssociationDemo_html_repo_host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: AssociationDemo-html5-app-host-service
+    service-plan: app-host
+- name: uaa_AssociationDemo
+  type: org.cloudfoundry.managed-service
+  parameters:
+    path: ./xs-security.json
+    service: xsuaa
+    service-name: AssociationDemo-xsuaa-service
+    service-plan: application
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npx -p @sap/cds-dk cds build --production
